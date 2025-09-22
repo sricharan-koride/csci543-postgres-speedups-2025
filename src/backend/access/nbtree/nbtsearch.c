@@ -1810,6 +1810,10 @@ _bt_readpage(IndexScanDesc scan, ScanDirection dir, OffsetNumber offnum,
 		if (!pstate.continuescan)
 			so->currPos.moreRight = false;
 
+		if(btree_leaf_prefetch && P_ISLEAF(opaque) && so->currPos.moreRight && !P_RIGHTMOST(opaque)){
+			PrefetchBuffer(scan->indexRelation, MAIN_FORKNUM, opaque->btpo_next);
+		}
+
 		Assert(itemIndex <= MaxTIDsPerBTreePage);
 		so->currPos.firstItem = 0;
 		so->currPos.lastItem = itemIndex - 1;
@@ -1929,6 +1933,10 @@ _bt_readpage(IndexScanDesc scan, ScanDirection dir, OffsetNumber offnum,
 			}
 
 			offnum = OffsetNumberPrev(offnum);
+		}
+
+		if(btree_leaf_prefetch && P_ISLEAF(opaque) && so->currPos.moreLeft && !P_LEFTMOST(opaque)){
+			PrefetchBuffer(scan->indexRelation, MAIN_FORKNUM, opaque->btpo_prev);
 		}
 
 		Assert(itemIndex >= 0);
