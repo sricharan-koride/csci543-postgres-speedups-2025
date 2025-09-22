@@ -88,6 +88,7 @@
 #include "utils/plancache.h"
 #include "utils/ps_status.h"
 #include "utils/xml.h"
+#include "access/nbtree.h"
 
 /* This value is normally passed in from the Makefile */
 #ifndef PG_KRB_SRVTAB
@@ -2025,6 +2026,25 @@ struct config_bool ConfigureNamesBool[] =
 		false,
 		NULL, NULL, NULL
 	},
+	{
+	{"btree_binsrch_linear", PGC_USERSET, DEVELOPER_OPTIONS,
+		gettext_noop("Use linear scan on tiny btree leaf pages instead of binary search."),
+		gettext_noop("Effective when leaf contains at most btree_binsrch_linear_threshold items.")
+	},
+	&btree_binsrch_linear,
+	false,
+	NULL, NULL, NULL
+	},
+
+	{
+	{"btree_leaf_prefetch", PGC_USERSET, DEVELOPER_OPTIONS,
+		gettext_noop("Prefetch the next sibling leaf page during btree range scans."),
+		NULL
+	},
+	&btree_leaf_prefetch,
+	false,
+	NULL, NULL, NULL
+	},
 
 	/* End-of-list marker */
 	{
@@ -3650,6 +3670,16 @@ struct config_int ConfigureNamesInt[] =
 		},
 		&scram_sha_256_iterations,
 		SCRAM_SHA_256_DEFAULT_ITERATIONS, 1, INT_MAX,
+		NULL, NULL, NULL
+	},
+
+	{
+		{"btree_binsrch_linear_threshold", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Max leaf items to use linear scan instead of binary search."),
+			NULL
+		},
+		&btree_binsrch_linear_threshold,
+		4, 1, 32,
 		NULL, NULL, NULL
 	},
 
