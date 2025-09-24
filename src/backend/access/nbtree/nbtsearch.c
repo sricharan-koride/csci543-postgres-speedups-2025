@@ -425,7 +425,6 @@ _bt_binsrch(Relation rel,
 			high = mid;
 	}
 
-found_position:
 	/*
 	 * At this point we have high == low.
 	 *
