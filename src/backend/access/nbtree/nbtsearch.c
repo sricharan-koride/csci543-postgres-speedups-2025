@@ -383,46 +383,46 @@ _bt_binsrch(Relation rel,
 	cmpval = key->nextkey ? 0 : 1;	/* select comparison value */
 
 	/*
-	 * Linear search optimization: for small ranges, linear search can be
-	 * faster than binary search due to better cache locality and avoiding
-	 * branch mispredictions. Only do this for leaf pages where we expect
-	 * actual data lookups.
+	 * Choose between linear and binary search based on page size and settings
 	 */
-	if (P_ISLEAF(opaque) && btree_binsrch_linear && 
-		(high - low) <= btree_binsrch_linear_threshold)
+	if (btree_binsrch_linear &&
+    	P_ISLEAF(opaque) &&
+    	(high - low) <= btree_binsrch_linear_threshold)
 	{
-		/* 
-		 * Linear search to find the first key >= scan key (or > scan key when nextkey=true)
-		 * This replicates the binary search logic but with sequential scanning
-		 */
-		while (low < high)
+		OffsetNumber i;
+		for (i = low; i < high; i++)
 		{
-			result = _bt_compare(rel, key, page, low);
-			
+			result = _bt_compare(rel, key, page, i);
+
 			if (result < cmpval)
-				low++;  /* This key is too small, keep looking */
+			{
+				/* Same as binary case: go left */
+				high = i;
+				break;
+			}
 			else
-				break;  /* Found first key >= target, stop here */
+			{
+				/* Same as binary case: go right */
+				low = i + 1;
+			}
 		}
-		
-		/* At this point low points to first key >= target, same as binary search */
-		if (key->backward)
-			return OffsetNumberPrev(low);
-		return low;
 	}
-
-	while (high > low)
+	else
 	{
-		OffsetNumber mid = low + ((high - low) / 2);
+		/* Binary search for larger pages or internal pages */
+		while (high > low)
+		{
+			OffsetNumber mid = low + ((high - low) / 2);
 
-		/* We have low <= mid < high, so mid points at a real slot */
+			/* We have low <= mid < high, so mid points at a real slot */
 
-		result = _bt_compare(rel, key, page, mid);
+			result = _bt_compare(rel, key, page, mid);
 
-		if (result >= cmpval)
-			low = mid + 1;
-		else
-			high = mid;
+			if (result >= cmpval)
+				low = mid + 1;
+			else
+				high = mid;
+		}
 	}
 
 	/*

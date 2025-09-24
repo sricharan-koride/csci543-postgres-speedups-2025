@@ -2027,13 +2027,13 @@ struct config_bool ConfigureNamesBool[] =
 		NULL, NULL, NULL
 	},
 	{
-	{"btree_binsrch_linear", PGC_USERSET, DEVELOPER_OPTIONS,
-		gettext_noop("Use linear scan on tiny btree leaf pages instead of binary search."),
-		gettext_noop("Effective when leaf contains at most btree_binsrch_linear_threshold items.")
-	},
-	&btree_binsrch_linear,
-	false,
-	NULL, NULL, NULL
+		{"btree_binsrch_linear", PGC_USERSET, DEVELOPER_OPTIONS,
+			gettext_noop("Use linear scan on tiny btree leaf pages instead of binary search."),
+			NULL
+		},
+		&btree_binsrch_linear,
+		false,
+		NULL, NULL, NULL
 	},
 
 	{
