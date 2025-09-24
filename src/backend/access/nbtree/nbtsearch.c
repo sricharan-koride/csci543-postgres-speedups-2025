@@ -382,6 +382,35 @@ _bt_binsrch(Relation rel,
 
 	cmpval = key->nextkey ? 0 : 1;	/* select comparison value */
 
+	/*
+	 * Linear search optimization: for small ranges, linear search can be
+	 * faster than binary search due to better cache locality and avoiding
+	 * branch mispredictions. Only do this for leaf pages where we expect
+	 * actual data lookups.
+	 */
+	if (P_ISLEAF(opaque) && btree_binsrch_linear && 
+		(high - low) <= btree_binsrch_linear_threshold)
+	{
+		/* 
+		 * Linear search to find the first key >= scan key (or > scan key when nextkey=true)
+		 * This replicates the binary search logic but with sequential scanning
+		 */
+		while (low < high)
+		{
+			result = _bt_compare(rel, key, page, low);
+			
+			if (result < cmpval)
+				low++;  /* This key is too small, keep looking */
+			else
+				break;  /* Found first key >= target, stop here */
+		}
+		
+		/* At this point low points to first key >= target, same as binary search */
+		if (key->backward)
+			return OffsetNumberPrev(low);
+		return low;
+	}
+
 	while (high > low)
 	{
 		OffsetNumber mid = low + ((high - low) / 2);
@@ -396,6 +425,7 @@ _bt_binsrch(Relation rel,
 			high = mid;
 	}
 
+found_position:
 	/*
 	 * At this point we have high == low.
 	 *
