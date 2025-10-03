@@ -1329,4 +1329,9 @@ extern IndexBuildResult *btbuild(Relation heap, Relation index,
 								 struct IndexInfo *indexInfo);
 extern void _bt_parallel_build_main(dsm_segment *seg, shm_toc *toc);
 
+/* GUC declarations (in src/include/access/nbtree.h) */
+extern bool btree_leaf_prefetch;
+extern bool btree_binsrch_linear;
+extern int btree_binsrch_linear_threshold;
+
 #endif							/* NBTREE_H */

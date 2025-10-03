@@ -382,18 +382,47 @@ _bt_binsrch(Relation rel,
 
 	cmpval = key->nextkey ? 0 : 1;	/* select comparison value */
 
-	while (high > low)
+	/*
+	 * Choose between linear and binary search based on page size and settings
+	 */
+	if (btree_binsrch_linear &&
+    	P_ISLEAF(opaque) &&
+    	(high - low) <= btree_binsrch_linear_threshold)
 	{
-		OffsetNumber mid = low + ((high - low) / 2);
+		OffsetNumber i;
+		for (i = low; i < high; i++)
+		{
+			result = _bt_compare(rel, key, page, i);
 
-		/* We have low <= mid < high, so mid points at a real slot */
+			if (result < cmpval)
+			{
+				/* Same as binary case: go left */
+				high = i;
+				break;
+			}
+			else
+			{
+				/* Same as binary case: go right */
+				low = i + 1;
+			}
+		}
+	}
+	else
+	{
+		/* Binary search for larger pages or internal pages */
+		while (high > low)
+		{
+			OffsetNumber mid = low + ((high - low) / 2);
 
-		result = _bt_compare(rel, key, page, mid);
+			/* We have low <= mid < high, so mid points at a real slot */
 
-		if (result >= cmpval)
-			low = mid + 1;
-		else
-			high = mid;
+			result = _bt_compare(rel, key, page, mid);
+
+			if (result >= cmpval)
+				low = mid + 1;
+			else
+				high = mid;
+		}
 	}
 
 	/*
@@ -1810,6 +1839,10 @@ _bt_readpage(IndexScanDesc scan, ScanDirection dir, OffsetNumber offnum,
 		if (!pstate.continuescan)
 			so->currPos.moreRight = false;
 
+		if(btree_leaf_prefetch && P_ISLEAF(opaque) && so->currPos.moreRight && !P_RIGHTMOST(opaque)){
+			PrefetchBuffer(scan->indexRelation, MAIN_FORKNUM, opaque->btpo_next);
+		}
+
 		Assert(itemIndex <= MaxTIDsPerBTreePage);
 		so->currPos.firstItem = 0;
 		so->currPos.lastItem = itemIndex - 1;
@@ -1929,6 +1962,10 @@ _bt_readpage(IndexScanDesc scan, ScanDirection dir, OffsetNumber offnum,
 			}
 
 			offnum = OffsetNumberPrev(offnum);
+		}
+
+		if(btree_leaf_prefetch && P_ISLEAF(opaque) && so->currPos.moreLeft && !P_LEFTMOST(opaque)){
+			PrefetchBuffer(scan->indexRelation, MAIN_FORKNUM, opaque->btpo_prev);
 		}
 
 		Assert(itemIndex >= 0);
